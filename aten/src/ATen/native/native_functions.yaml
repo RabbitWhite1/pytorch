@@ -1963,16 +1963,16 @@
   device_check: NoCheck
   device_guard: False
 
-- func: cumprod(Tensor self, int dim, *, ScalarType? dtype=None) -> Tensor
+- func: cumprod(Tensor self, int dim, *, ScalarType? dtype=None, bool prepend=False) -> Tensor
   structured_delegate: cumprod.out
   device_check: NoCheck   # TensorIterator
   variants: function, method
 
-- func: cumprod_(Tensor(a!) self, int dim, *, ScalarType? dtype=None) -> Tensor(a!)
+- func: cumprod_(Tensor(a!) self, int dim, *, ScalarType? dtype=None, bool prepend=False) -> Tensor(a!)
   structured_delegate: cumprod.out
   variants: method
 
-- func: cumprod.out(Tensor self, int dim, *, ScalarType? dtype=None, Tensor(a!) out) -> Tensor(a!)
+- func: cumprod.out(Tensor self, int dim, *, ScalarType? dtype=None, bool prepend=False, Tensor(a!) out) -> Tensor(a!)
   structured: True
   device_check: NoCheck   # TensorIterator
   dispatch:
@@ -1989,22 +1989,22 @@
 - func: cumprod.dimname_out(Tensor self, Dimname dim, *, ScalarType? dtype=None, Tensor(a!) out) -> Tensor(a!)
   device_check: NoCheck   # TensorIterator
 
-- func: cumprod_backward(Tensor grad, Tensor input, int dim, Tensor output) -> Tensor
+- func: cumprod_backward(Tensor grad, Tensor input, int dim, Tensor output, bool prepend=False) -> Tensor
   variants: function
   device_check: NoCheck
   device_guard: False
 
-- func: cumsum(Tensor self, int dim, *, ScalarType? dtype=None) -> Tensor
+- func: cumsum(Tensor self, int dim, *, ScalarType? dtype=None, bool prepend=False) -> Tensor
   structured_delegate: cumsum.out
   device_check: NoCheck   # TensorIterator
   variants: function, method
   tags: core
 
-- func: cumsum_(Tensor(a!) self, int dim, *, ScalarType? dtype=None) -> Tensor(a!)
+- func: cumsum_(Tensor(a!) self, int dim, *, ScalarType? dtype=None, bool prepend=False) -> Tensor(a!)
   structured_delegate: cumsum.out
   variants: method
 
-- func: cumsum.out(Tensor self, int dim, *, ScalarType? dtype=None, Tensor(a!) out) -> Tensor(a!)
+- func: cumsum.out(Tensor self, int dim, *, ScalarType? dtype=None, bool prepend=False, Tensor(a!) out) -> Tensor(a!)
   structured: True
   device_check: NoCheck   # TensorIterator
   dispatch:
