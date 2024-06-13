@@ -249,6 +249,11 @@ struct PythonPrintImpl {
         use.user->kind() == prim::rpc_sync ||
         use.user->kind() == prim::rpc_remote)
       return false;
+    
+    // never inline collective operators
+    if (use.user->kind() == dist::allgather_base || 
+        use.user->kind() == dist::reduce_scatter_base) 
+      return false;
 
     // isinstance appearing in an if expression
     // causes type refinement to occur, but we have

@@ -83,6 +83,9 @@ namespace cuda {
 using namespace ::c10::cuda;
 #endif
 } // namespace cuda
+namespace dist {
+using namespace ::c10::dist;
+}
 
 struct Function;
 struct GraphFunction;

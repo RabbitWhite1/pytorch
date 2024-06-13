@@ -145,5 +145,6 @@ bool Symbol::is_onnx() const { return ns() == namespaces::onnx; }
 bool Symbol::is_user() const { return ns() == namespaces::user; }
 bool Symbol::is_caffe2() const { return ns() == namespaces::_caffe2; }
 bool Symbol::is_dimname() const { return ns() == namespaces::dimname; }
+bool Symbol::is_dist() const { return ns() == namespaces::dist; }
 
 } // namespace c10

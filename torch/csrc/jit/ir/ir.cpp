@@ -1195,6 +1195,8 @@ bool Node::hasSideEffects() const {
 #endif
     case prim::Enter:
     case prim::Exit:
+    case dist::allgather_base:
+    case dist::reduce_scatter_base:
       return true;
   }
 

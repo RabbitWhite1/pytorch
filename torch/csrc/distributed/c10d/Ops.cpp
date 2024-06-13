@@ -1,7 +1,12 @@
+#include <ATen/TracerMode.h>
 #include <ATen/core/dispatch/Dispatcher.h>
+#include <ATen/core/op_registration/op_registration.h>
+#include <c10/core/ScalarType.h>
 #include <c10/util/intrusive_ptr.h>
 #include <torch/csrc/distributed/c10d/ProcessGroup.hpp>
 #include <torch/csrc/distributed/c10d/Types.hpp>
+#include <torch/csrc/jit/frontend/tracer.h>
+#include <torch/csrc/jit/ir/ir.h>
 #include <torch/library.h>
 
 namespace c10d {
@@ -527,6 +532,91 @@ TORCH_LIBRARY_IMPL(c10d, SparseCPU, m) {
 
 TORCH_LIBRARY_IMPL(c10d, SparseCUDA, m) {
   m.impl("allreduce_", allreduce_sparse_cuda_);
+}
+
+std::tuple<at::Tensor, c10::intrusive_ptr<Work>> _reduce_scatter_base_Tracer( 
+    at::Tensor& output_tensor,                                              
+    at::Tensor& input_tensor,                                               
+    const c10::intrusive_ptr<ProcessGroup>& process_group,                  
+    const c10::intrusive_ptr<ReduceOp>& reduce_op,                          
+    int64_t timeout) {                            
+  printf("\033[1;31mreduce_scatter_base!! input_tensors[0].device().type()=%s\033[0m\n", c10::DeviceTypeName(input_tensor.device().type()).c_str());
+
+  // torch::jit::Node* node = nullptr;
+  // if (torch::jit::tracer::isTracing()) {
+  //   auto& graph = torch::jit::tracer::getTracingState()->graph;
+  //   node = graph->create(torch::jit::dist::reduce_scatter_base, /*num_outputs=*/0);
+  //   torch::jit::tracer::recordSourceLocation(node);
+  //   // torch::jit::tracer::addInputs(node, "output_tensor", output_tensor);
+  //   torch::jit::tracer::addInputs(node, "input_tensor", input_tensor);
+  //   // torch::jit::tracer::addInputs(node, "reduce_op", reduce_op);
+  //   graph->insertNode(node);
+  // }
+
+  auto ret = [&]() {
+    at::tracer::impl::NoTracerDispatchMode tracer_guard;
+    static auto op =
+        c10::Dispatcher::singleton()
+            .findSchemaOrThrow("c10d::_reduce_scatter_base_", "")
+            .typed<std::tuple<at::Tensor, c10::intrusive_ptr<Work>>(
+                at::Tensor&,
+                at::Tensor&,
+                const c10::intrusive_ptr<::c10d::ProcessGroup>&,
+                const c10::intrusive_ptr<::c10d::ReduceOp>&,
+                int64_t)>();
+    return op.call(output_tensor, input_tensor, process_group, reduce_op, timeout);
+  }();
+
+  // if (torch::jit::tracer::isTracing()) {
+  //   torch::jit::tracer::addOutput(node, output_tensor);
+  // }
+  return ret;
+}
+
+std::tuple<at::Tensor, c10::intrusive_ptr<Work>> _allgather_base_Tracer(
+    at::Tensor& output_tensor,
+    at::Tensor& input_tensor,
+    const c10::intrusive_ptr<ProcessGroup>& process_group) {
+  printf("\033[1;31mallgather!! input_tensors[0].device().type()=%s\033[0m\n", c10::DeviceTypeName(input_tensor.device().type()).c_str());
+
+  torch::jit::Node* node = nullptr;
+  if (torch::jit::tracer::isTracing()) {
+    auto& graph = torch::jit::tracer::getTracingState()->graph;
+    node = graph->create(torch::jit::dist::allgather_base, /*num_outputs=*/0);
+    torch::jit::tracer::recordSourceLocation(node);
+    // torch::jit::tracer::addInputs(node, "output_tensor", output_tensor);
+    torch::jit::tracer::addInputs(node, "input_tensor", input_tensor);
+    graph->insertNode(node);
+  }
+
+  // Redispatch.
+  auto ret = [&]() {
+    // at::tracer::impl::NoTracerDispatchMode tracer_guard;
+    // static auto op =
+    //       c10::Dispatcher::singleton()
+    //           .findSchemaOrThrow("c10d::_allgather_base_", "")
+    //           .typed<std::tuple<at::Tensor, c10::intrusive_ptr<Work>>(
+    //               at::Tensor&,
+    //               at::Tensor&,
+    //               const c10::intrusive_ptr<::c10d::ProcessGroup>&)>();
+
+    // return op.call(output_tensor, input_tensor, process_group);
+    // return _allgather_base_CUDA(output_tensor, input_tensor, process_group);
+    auto work = process_group->getBackend(input_tensor.device().type())
+                    ->_allgather_base(output_tensor, input_tensor);
+    return std::tuple<at::Tensor, c10::intrusive_ptr<Work>>(
+        output_tensor, work);
+  }();
+
+  if (torch::jit::tracer::isTracing()) {
+    torch::jit::tracer::addOutput(node, output_tensor);
+  }
+  return ret;
+}
+
+TORCH_LIBRARY_IMPL(c10d, Tracer, m) {
+  m.impl("_reduce_scatter_base_", _reduce_scatter_base_Tracer);
+  m.impl("_allgather_base_", _allgather_base_Tracer);
 }
 
 } // namespace

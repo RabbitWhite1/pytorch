@@ -87,6 +87,7 @@ struct TORCH_API Symbol {
   bool is_user() const;
   bool is_caffe2() const;
   bool is_dimname() const;
+  bool is_dist() const;
 
   // So we can switch on this
   constexpr operator unique_t() const {

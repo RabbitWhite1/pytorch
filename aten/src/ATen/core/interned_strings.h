@@ -24,6 +24,7 @@ namespace c10 {
   _(namespaces, user)                \
   _(namespaces, _caffe2)             \
   _(namespaces, dimname)             \
+  _(namespaces, dist)                \
   _(namespaces, namespaces)          \
   _(prim, Assign)                    \
   _(prim, BroadcastingChunk)         \
@@ -340,7 +341,9 @@ namespace c10 {
   _(attr, output_layouts)            \
   _(attr, allowzero)                 \
   _(attr, seen_none)                 \
-  _(attr, overload_name)
+  _(attr, overload_name)             \
+  _(dist, reduce_scatter_base)       \
+  _(dist, allgather_base)
 
 enum class _keys : unique_t {
     #define DEFINE_KEY(ns, s) ns##_##s,

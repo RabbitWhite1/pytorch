@@ -26,6 +26,9 @@
 #include <sstream>
 #include <string>
 
+#include <execinfo.h>
+#include <unistd.h>
+
 namespace torch::jit::tracer {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -215,6 +218,11 @@ Value* TracingState::getValue(const IValue& var) {
       oss << "Tried to trace " << var
           << " but it is not part of the active trace. Modules that are called during a trace"
           << " must be registered as submodules of the thing being traced.";
+      void *array[100];
+      auto size = backtrace(array, 100);
+      backtrace_symbols_fd(array, size, STDERR_FILENO);
+      printf("\n--------------------------\n");
+      AT_ERROR("ERROR!!!!!");
     }
     throw std::runtime_error(oss.str());
   } else {

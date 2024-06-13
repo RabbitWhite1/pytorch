@@ -649,6 +649,9 @@ void AliasDb::analyzeImpl(Node* node) {
     case prim::rpc_sync:
     case prim::rpc_remote:
       return analyzeRpcAsync(node);
+    case dist::allgather_base:
+    case dist::reduce_scatter_base:
+      return analyzeDist(node);
     case aten::batch_norm:
       return analyzeBatchNorm(node);
     case aten::instance_norm:
@@ -1087,6 +1090,17 @@ void AliasDb::analyzeAwaitableWait(Node* node) {
 }
 
 void AliasDb::analyzeRpcAsync(Node* node) {
+  for (const auto input : node->inputs()) {
+    setWildcard(input);
+  }
+
+  // Give the future that the rpc_async emits a fresh value
+  for (const auto output : node->outputs()) {
+    giveFreshAlias(output);
+  }
+}
+
+void AliasDb::analyzeDist(Node* node) {
   for (const auto input : node->inputs()) {
     setWildcard(input);
   }
