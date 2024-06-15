@@ -501,6 +501,11 @@ void runCleanupPasses(const std::shared_ptr<Graph>& g) {
       LowerSimpleTuples(subgraph);
       EliminateDeadCode(subgraph);
       LintGraph(subgraph);
+    } else if (n->kind() == prim::PythonOp) {
+      if (n->hasAttribute(attr::Subgraph)) {
+        auto subgraph = n->g(attr::Subgraph);
+        runCleanupPasses(subgraph);
+      }
     }
   }
   if (getInlineEverythingMode()) {
