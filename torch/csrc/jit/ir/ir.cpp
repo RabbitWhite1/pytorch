@@ -402,16 +402,15 @@ std::ostream& Graph::print(std::ostream& out, bool print_source_locations)
   }
   out.flush();
 
-  /*
   // Uncomment this to debug all_nodes issues
-  {
-    out << "\n";
-    out << "all_nodes:\n";
-    for (auto& n : all_nodes) {
-      printNode(out, const_cast<Node*>(n), nullptr);
-    }
-  }
-  */
+  // {
+  //   out << "\n";
+  //   out << "all_nodes:\n";
+  //   for (auto& n : all_nodes) {
+  //     n->print(out, 1, nullptr, print_source_locations);
+  //   }
+  // }
+
   return out;
 }
 
@@ -1195,9 +1194,10 @@ bool Node::hasSideEffects() const {
 #endif
     case prim::Enter:
     case prim::Exit:
+      return true;
     case dist::allgather_base:
     case dist::reduce_scatter_base:
-      return true;
+      return false;
   }
 
   auto op = maybeOperator();
