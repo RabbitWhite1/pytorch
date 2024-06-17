@@ -343,7 +343,8 @@ namespace c10 {
   _(attr, seen_none)                 \
   _(attr, overload_name)             \
   _(dist, reduce_scatter_base)       \
-  _(dist, allgather_base)
+  _(dist, allgather_base)            \
+  _(dist, allreduce)
 
 enum class _keys : unique_t {
     #define DEFINE_KEY(ns, s) ns##_##s,

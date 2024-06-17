@@ -651,6 +651,7 @@ void AliasDb::analyzeImpl(Node* node) {
       return analyzeRpcAsync(node);
     case dist::allgather_base:
     case dist::reduce_scatter_base:
+    case dist::allreduce:
       return analyzeDist(node);
     case aten::batch_norm:
       return analyzeBatchNorm(node);

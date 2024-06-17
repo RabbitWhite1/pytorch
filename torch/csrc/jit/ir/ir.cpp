@@ -1197,6 +1197,7 @@ bool Node::hasSideEffects() const {
       return true;
     case dist::allgather_base:
     case dist::reduce_scatter_base:
+    case dist::allreduce:
       return false;
   }
 

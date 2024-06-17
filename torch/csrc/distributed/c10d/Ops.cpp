@@ -649,7 +649,7 @@ allreduce_Tracer(
   if (torch::jit::tracer::isTracing()) {
     tracer_state = torch::jit::tracer::getTracingState();
     // FIXME: temporarily borrowing reduce_scatter_base
-    node = tracer_state->createNode(torch::jit::dist::reduce_scatter_base, /*num_outputs=*/0);
+    node = tracer_state->createNode(torch::jit::dist::allreduce, /*num_outputs=*/0);
     torch::jit::tracer::recordSourceLocation(node);
     torch::jit::tracer::addInputs(node, "tensors", tensors);
     tracer_state->insertNode(node);

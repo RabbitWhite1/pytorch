@@ -252,7 +252,8 @@ struct PythonPrintImpl {
     
     // never inline collective operators
     if (use.user->kind() == dist::allgather_base || 
-        use.user->kind() == dist::reduce_scatter_base) 
+        use.user->kind() == dist::reduce_scatter_base ||
+        use.user->kind() == dist::allreduce) 
       return false;
 
     // isinstance appearing in an if expression

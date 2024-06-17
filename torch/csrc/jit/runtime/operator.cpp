@@ -217,7 +217,7 @@ bool printerHasSpecialCaseFor(Symbol sym) {
       prim::SetAttr,        prim::CallFunction,  prim::isinstance,
       prim::unchecked_cast, prim::tolist,        prim::rpc_async,
       prim::rpc_sync,       prim::rpc_remote,    dist::allgather_base,
-      dist::reduce_scatter_base};
+      dist::reduce_scatter_base, dist::allreduce};
 
   // WARNING: by adding a value to this set, you are asserting that your
   // primitive is only ever added during optimization and does not need
@@ -339,8 +339,9 @@ bool aliasAnalysisHasSpecialCaseFor(Symbol symbol) {
       prim::Enter,
       prim::Exit,
       prim::FallbackGraph,
+      dist::allgather_base,
       dist::reduce_scatter_base,
-      dist::allgather_base
+      dist::allreduce
   };
 
   // Operators that should not be used by alias analysis

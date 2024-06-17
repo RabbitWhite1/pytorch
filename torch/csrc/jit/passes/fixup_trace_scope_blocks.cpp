@@ -404,6 +404,33 @@ std::string mangleMethodName(
   TORCH_INTERNAL_ASSERT(false);
 }
 
+void inlinePythonOp(std::shared_ptr<Graph>& g) {
+  auto nodes = g->nodes();
+  for (auto it = nodes.begin(); it != nodes.end(); it++) {
+    auto n = *it;
+    if (n->kind() == prim::PythonOp && n->hasAttribute(attr::Subgraph)) {
+      WithInsertPoint ip(n);
+      auto &subgraph = n->g(attr::Subgraph);
+      inlinePythonOp(subgraph);
+      
+      TORCH_INTERNAL_ASSERT(n->inputs().size() == subgraph->inputs().size());
+
+      AT_ASSERT(n->owningGraph() == g.get());
+      std::vector<torch::jit::Value*> new_outputs = insertGraph(*n->owningGraph(), *subgraph, n->inputs());
+
+      const auto& old_outputs = n->outputs();
+      AT_ASSERT(new_outputs.size() == old_outputs.size());
+      for (const auto i : c10::irange(old_outputs.size())) {
+        if (old_outputs[i]->hasDebugName()) {
+          new_outputs[i]->setDebugName(old_outputs[i]->debugName());
+        }
+        old_outputs[i]->replaceAllUsesWith(new_outputs[i]);
+      }
+      it.destroyCurrent();
+    }
+  }
+}
+
 // Register the attr::Subgraph Graph values as Functions in the
 // class compilation unit and register that Function as a method
 // on the corresponding Module in the Module hierarchy. Note that we
@@ -412,8 +439,10 @@ void createMethodCalls(const std::shared_ptr<Graph>& g) {
   for (auto node_itr = g->nodes().begin(); node_itr != g->nodes().end();) {
     Node* n = *node_itr++;
     if (n->kind() == prim::TracedFork) {
+      inlinePythonOp(n->g(attr::Subgraph));
       createMethodCalls(n->g(attr::Subgraph));
     } else if (n->kind() == prim::TracedModuleForward) {
+      inlinePythonOp(n->g(attr::Subgraph));
       WithInsertPoint ip(n);
 
       ClassTypePtr callee_mod_type = n->input(0)->type()->expect<ClassType>();
@@ -549,6 +578,7 @@ void FixupTraceScopeBlocks(std::shared_ptr<Graph>& graph, Module* self) {
   } else {
     lambdaLiftBlocksAndConvertToGraph(graph->block());
     createMethodCalls(graph);
+    inlinePythonOp(graph);
     runCleanupPasses(self);
     // `graph` isn't referenced in `self` yet, so we need to run
     // this separately
