@@ -3957,6 +3957,8 @@ def _new_group_with_tag(
     _world.pg_group_ranks[pg] = {
         global_rank: group_rank for group_rank, global_rank in enumerate(ranks)
     }
+    if pg != GroupMember.NON_GROUP_MEMBER:
+        print(f'\033[1;34mMY_RANK={get_rank()}: created process group({pg._id()}, {pg._backend_id(Backend.backend_type_map[pg.name()])}), containing {_world.pg_group_ranks[pg]}\033[0m')
 
     if _is_barrier_after_init() == 1:
         # barrier at the end to ensure that once we return from this method, all

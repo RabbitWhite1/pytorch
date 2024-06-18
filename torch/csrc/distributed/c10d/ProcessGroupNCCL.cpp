@@ -1579,6 +1579,10 @@ float ProcessGroupNCCL::WorkNCCL::getDuration() const {
   return (*ncclStartEvents_)[0].elapsed_time((*ncclEndEvents_)[0]);
 }
 
+uint64_t ProcessGroupNCCL::WorkNCCL::getTag() const {
+  return seq_;
+}
+
 void ProcessGroupNCCL::workEnqueue(
     c10::intrusive_ptr<ProcessGroupNCCL::WorkNCCL> work) {
   if (!terminateProcessGroup_.load()) {

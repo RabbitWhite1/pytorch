@@ -534,42 +534,54 @@ TORCH_LIBRARY_IMPL(c10d, SparseCUDA, m) {
   m.impl("allreduce_", allreduce_sparse_cuda_);
 }
 
+
+// Below are customized Tracer for collective communicatino
+std::string reduce_op_to_string(const ReduceOp& reduce_op) {
+  switch (reduce_op) {
+    case ReduceOp::SUM:
+      return "SUM";
+    case ReduceOp::PRODUCT:
+      return "PRODUCT";
+    case ReduceOp::MIN:
+      return "MIN";
+    case ReduceOp::MAX:
+      return "MAX";
+    case ReduceOp::BAND:
+      return "BAND";
+    case ReduceOp::BOR:
+      return "BOR";
+    case ReduceOp::BXOR:
+      return "BXOR";
+    case ReduceOp::AVG:
+      return "AVG";
+    case ReduceOp::PREMUL_SUM:
+      return "PREMUL_SUM";
+    default:
+      // We are just tracer, no need to raise error.
+      return "UNKNOWN";
+  }
+}
+
 std::tuple<at::Tensor, c10::intrusive_ptr<Work>> _reduce_scatter_base_Tracer( 
     at::Tensor& output_tensor,                                              
     at::Tensor& input_tensor,                                               
     const c10::intrusive_ptr<ProcessGroup>& process_group,                  
     const c10::intrusive_ptr<ReduceOp>& reduce_op,                          
     int64_t timeout) {                            
-  printf("\033[1;31mreduce_scatter_base!! input_tensors[0].device().type()=%s\033[0m\n", c10::DeviceTypeName(input_tensor.device().type()).c_str());
+  auto groupID = process_group->getID();
+  auto backendID = process_group->getBackendID(process_group->getBackendType());
+  printf("\033[1;31mreduce_scatter_base (groupid=%ld, backendid=%ld)!! input_tensors[0].device().type()=%s\033[0m\n", groupID, backendID, c10::DeviceTypeName(input_tensor.device().type()).c_str());
 
   torch::jit::Node* node = nullptr;
   if (torch::jit::tracer::isTracing()) {
     auto& graph = torch::jit::tracer::getTracingState()->graph;
     node = graph->create(torch::jit::dist::reduce_scatter_base, /*num_outputs=*/0);
     torch::jit::tracer::recordSourceLocation(node);
+    node->i_(torch::jit::attr::group_id, groupID);
+    node->i_(torch::jit::attr::backend_id, backendID);
+    node->s_(torch::jit::attr::op, reduce_op_to_string(reduce_op->op_));
     // torch::jit::tracer::addInputs(node, "output_tensor", output_tensor);
     torch::jit::tracer::addInputs(node, "input_tensor", input_tensor);
-    if (reduce_op->op_ == ReduceOp::SUM) {
-      torch::jit::tracer::addInputs(node, "reduce_op", "SUM");
-    } else if (reduce_op->op_ == ReduceOp::AVG) {
-      torch::jit::tracer::addInputs(node, "reduce_op", "AVG");
-    } else if (reduce_op->op_ == ReduceOp::PRODUCT) {
-      torch::jit::tracer::addInputs(node, "reduce_op", "PRODUCT");
-    } else if (reduce_op->op_ == ReduceOp::MIN) {
-      torch::jit::tracer::addInputs(node, "reduce_op", "MIN");
-    } else if (reduce_op->op_ == ReduceOp::MAX) {
-      torch::jit::tracer::addInputs(node, "reduce_op", "MAX");
-    } else if (reduce_op->op_ == ReduceOp::BAND) {
-      torch::jit::tracer::addInputs(node, "reduce_op", "BAND");
-    } else if (reduce_op->op_ == ReduceOp::BOR) {
-      torch::jit::tracer::addInputs(node, "reduce_op", "BOR");
-    } else if (reduce_op->op_ == ReduceOp::BXOR) {
-      torch::jit::tracer::addInputs(node, "reduce_op", "BXOR");
-    } else if (reduce_op->op_ == ReduceOp::PREMUL_SUM) {
-      torch::jit::tracer::addInputs(node, "reduce_op", "PREMUL_SUM");
-    } else {
-      torch::jit::tracer::addInputs(node, "reduce_op", "UNKNOWN");
-    }
     graph->insertNode(node);
   }
 
@@ -587,7 +599,11 @@ std::tuple<at::Tensor, c10::intrusive_ptr<Work>> _reduce_scatter_base_Tracer(
     return op.call(output_tensor, input_tensor, process_group, reduce_op, timeout);
   }();
 
+
   if (torch::jit::tracer::isTracing()) {
+    if (process_group->getBackendType() == ProcessGroup::BackendType::NCCL) {
+      node->i_(torch::jit::attr::tag, std::get<1>(ret)->getTag());
+    }
     torch::jit::tracer::addOutput(node, output_tensor);
   }
   return ret;
@@ -597,8 +613,10 @@ std::tuple<at::Tensor, c10::intrusive_ptr<Work>> _allgather_base_Tracer(
     at::Tensor& output_tensor,
     at::Tensor& input_tensor,
     const c10::intrusive_ptr<ProcessGroup>& process_group) {
-  printf("\033[1;31mallgather!! input_tensors[0].device().type()=%s\033[0m\n", c10::DeviceTypeName(input_tensor.device().type()).c_str());
-
+  auto groupID = process_group->getID();
+  auto backendID = process_group->getBackendID(process_group->getBackendType());
+  printf("\033[1;31mallgather (groupid=%ld, backendid=%ld)!! input_tensors[0].device().type()=%s\033[0m\n", groupID, backendID, c10::DeviceTypeName(input_tensor.device().type()).c_str());
+  
   torch::jit::Node* node = nullptr;
   std::shared_ptr<torch::jit::tracer::TracingState> tracer_state;
 
@@ -606,10 +624,11 @@ std::tuple<at::Tensor, c10::intrusive_ptr<Work>> _allgather_base_Tracer(
     tracer_state = torch::jit::tracer::getTracingState();
     node = tracer_state->createNode(torch::jit::dist::allgather_base, /*num_outputs=*/0);
     torch::jit::tracer::recordSourceLocation(node);
+    node->i_(torch::jit::attr::group_id, groupID);
+    node->i_(torch::jit::attr::backend_id, backendID);
     // torch::jit::tracer::addInputs(node, "output_tensor", output_tensor);
     torch::jit::tracer::addInputs(node, "input_tensor", input_tensor);
     tracer_state->insertNode(node);
-    torch::jit::tracer::setTracingState(nullptr);
   }
 
   // Redispatch.
@@ -627,7 +646,9 @@ std::tuple<at::Tensor, c10::intrusive_ptr<Work>> _allgather_base_Tracer(
   }();
 
   if (tracer_state) {
-    torch::jit::tracer::setTracingState(std::move(tracer_state));
+    if (process_group->getBackendType() == ProcessGroup::BackendType::NCCL) {
+      node->i_(torch::jit::attr::tag, std::get<1>(ret)->getTag());
+    }
     torch::jit::tracer::addOutput(node, output_tensor);
   }
   return ret;
@@ -641,7 +662,9 @@ allreduce_Tracer(
     const c10::intrusive_ptr<ReduceOp>& reduce_op,                    
     const c10::optional<at::Tensor>& sparse_indices,                  
     int64_t timeout) {                
-  printf("\033[1;31mallreduce!! device=%s\033[0m\n", c10::DeviceTypeName(tensors[0].device().type()).c_str());
+  auto groupID = process_group->getID();
+  auto backendID = process_group->getBackendID(process_group->getBackendType());
+  printf("\033[1;31mallreduce (groupid=%ld, backendid=%ld)!! device=%s\033[0m\n", groupID, backendID, c10::DeviceTypeName(tensors[0].device().type()).c_str());
 
   torch::jit::Node* node = nullptr;
   std::shared_ptr<torch::jit::tracer::TracingState> tracer_state;
@@ -651,6 +674,8 @@ allreduce_Tracer(
     // FIXME: temporarily borrowing reduce_scatter_base
     node = tracer_state->createNode(torch::jit::dist::allreduce, /*num_outputs=*/0);
     torch::jit::tracer::recordSourceLocation(node);
+    node->i_(torch::jit::attr::group_id, groupID);
+    node->i_(torch::jit::attr::backend_id, backendID);
     torch::jit::tracer::addInputs(node, "tensors", tensors);
     tracer_state->insertNode(node);
     torch::jit::tracer::setTracingState(nullptr);
@@ -666,6 +691,9 @@ allreduce_Tracer(
 
   if (tracer_state) {
     torch::jit::tracer::setTracingState(std::move(tracer_state));
+    if (process_group->getBackendType() == ProcessGroup::BackendType::NCCL) {
+      node->i_(torch::jit::attr::tag, work->getTag());
+    }
     torch::jit::tracer::addOutput(node, tensor_vec); 
   }
 

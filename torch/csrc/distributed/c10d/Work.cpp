@@ -131,6 +131,10 @@ float Work::getDuration() const {
   TORCH_CHECK(false, "Only ProcessGrouppNCCL::WorkNCCL supports getDuration.");
 }
 
+uint64_t Work::getTag() const {
+  TORCH_CHECK(false, "Only ProcessGrouppNCCL::WorkNCCL supports getTag.");
+}
+
 class FutureWrappingWork : public Work {
  public:
   FutureWrappingWork(c10::intrusive_ptr<c10::ivalue::Future> fut)
