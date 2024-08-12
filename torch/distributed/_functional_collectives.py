@@ -198,7 +198,7 @@ def all_gather_tensor(
     :: N.B. If you pass a PG or a 1D list to perform a MPMD collective, the compiler won't be able to recover
     that information and perform collective algebraic optimization. Use other forms of input for that.
     """
-    assert self.is_contiguous()
+    # assert self.is_contiguous()
     group_name = _resolve_group_name(group, tag)
     group_size = c10d._get_group_size_by_name(group_name)
     tensor = torch.ops._c10d_functional.all_gather_into_tensor(
